@@ -1,0 +1,31 @@
+# secrets
+.env
+*.key
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# data / runtime
+api/sitemind.db
+api/sitemind.db-*
+api/eval_cache.json
+data/generated/
+*.log
+
+# node
+node_modules/
+.next/
+out/
+web/.env.local
+
+# os
+.DS_Store
+Thumbs.db
+
+# model cache (fastembed downloads onnx here)
+.fastembed_cache/

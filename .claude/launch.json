@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sitemind-api",
+      "runtimeExecutable": "api/.venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "sitemind.main:app", "--host", "127.0.0.1", "--port", "8137"],
+      "port": 8137
+    }
+  ]
+}

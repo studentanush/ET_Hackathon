@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SiteMind — EPC Project Intelligence</title>
+<style>
+  :root{
+    --bg:#161618; --panel:#1e1e21; --panel2:#26262a; --line:#33333a;
+    --txt:#ededee; --mut:#96969f; --accent:#d97757; --accent2:#7ab8a0;
+    --warn:#d9a35c; --bad:#e0695f; --good:#5fb894; --crit:#e05252;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.18);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.6 ui-sans-serif,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  header{display:flex;align-items:center;gap:14px;padding:15px 24px;background:rgba(22,22,24,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+  header .logo{font-weight:700;font-size:18px;letter-spacing:-.2px;display:flex;align-items:center;gap:8px}
+  header .logo::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  header .logo b{color:var(--accent);font-weight:700}
+  header .sub{color:var(--mut);font-size:12.5px}
+  header .spacer{flex:1}
+  header button.reset{background:var(--panel2);color:var(--mut);border:1px solid var(--line);padding:7px 13px;border-radius:8px;cursor:pointer;font-size:12.5px;transition:.15s}
+  header button.reset:hover{color:var(--txt);border-color:var(--mut)}
+  nav{display:flex;gap:2px;padding:7px 20px;background:rgba(30,30,33,.6);border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:55px;z-index:9}
+  nav button{background:none;border:none;color:var(--mut);padding:8px 15px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
+  nav button:hover{color:var(--txt);background:rgba(255,255,255,.03)}
+  nav button.active{background:var(--panel2);color:var(--txt);box-shadow:inset 0 0 0 1px var(--line)}
+  main{padding:26px 24px;max-width:1180px;margin:0 auto}
+  .view{display:none} .view.active{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  h2{margin:0 0 4px;font-size:22px;font-weight:650;letter-spacing:-.3px} h3{font-weight:600;letter-spacing:-.2px}
+  .lead{color:var(--mut);margin:0 0 20px;max-width:70ch}
+  .grid{display:grid;gap:14px}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+  .kpi{position:relative;overflow:hidden}
+  .kpi .v{font-size:27px;font-weight:700;letter-spacing:-.5px} .kpi .l{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.7px;margin-top:2px}
+  .kpi .v.good{color:var(--good)} .kpi .v.warn{color:var(--warn)} .kpi .v.bad{color:var(--bad)}
+  .row{display:flex;gap:14px;flex-wrap:wrap} .row>*{flex:1;min-width:260px}
+  button.act{background:var(--accent);color:#1a1108;border:none;padding:9px 16px;border-radius:9px;font-weight:600;font-size:13px;cursor:pointer;transition:.15s}
+  button.act:hover{filter:brightness(1.08)}
+  button.act.ghost{background:transparent;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 45%,transparent)}
+  button.act.ghost:hover{background:color-mix(in srgb,var(--accent) 12%,transparent);filter:none}
+  button.act:disabled{opacity:.5;cursor:wait}
+  select,input,textarea{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:9px 11px;font-size:13px;outline:none;transition:.15s}
+  select:focus,input:focus,textarea:focus{border-color:var(--accent)}
+  table{width:100%;border-collapse:collapse;font-size:13px} th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr:last-child td{border-bottom:none} tbody tr:hover td,table tr:hover td{background:rgba(255,255,255,.02)}
+  th{color:var(--mut);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.5px}
+  .chip{display:inline-block;padding:2px 9px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.2px}
+  .chip.dev{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)} .chip.ok{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+  .chip.unclear{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+  .chip.crit{background:var(--crit);color:#fff} .chip.major{background:color-mix(in srgb,var(--bad) 18%,transparent);color:var(--bad)} .chip.minor{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+  .banner{border-radius:11px;padding:12px 15px;margin:12px 0;font-weight:500;font-size:13px}
+  .banner.bad{background:color-mix(in srgb,var(--crit) 11%,transparent);border:1px solid color-mix(in srgb,var(--crit) 45%,transparent);color:#f2c4c1}
+  .banner.good{background:color-mix(in srgb,var(--good) 10%,transparent);border:1px solid color-mix(in srgb,var(--good) 40%,transparent)}
+  .muted{color:var(--mut)} .mono{font-family:ui-monospace,Consolas,monospace}
+  .gantt{margin-top:12px} .gbar{position:relative;height:22px;margin:3px 0;background:var(--panel2);border-radius:5px;overflow:hidden}
+  .gbar>i{position:absolute;height:100%;background:color-mix(in srgb,var(--accent2) 65%,transparent);border-radius:5px}
+  .gbar.crit>i{background:color-mix(in srgb,var(--crit) 72%,transparent)}
+  .gbar>span{position:absolute;left:8px;top:2px;font-size:11px;white-space:nowrap;z-index:2;color:var(--txt)}
+  .glabel{display:grid;grid-template-columns:230px 1fr;gap:8px;align-items:center;font-size:12px;margin:2px 0}
+  .risk{border-left:3px solid var(--warn);padding:11px 15px;margin:10px 0;background:var(--panel2);border-radius:0 9px 9px 0}
+  .risk.hi{border-color:var(--crit)}
+  .mit{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin:6px 0;font-size:12px}
+  .cites{margin-top:12px;font-size:12px} .cites a,.doclink{color:var(--accent);cursor:pointer;text-decoration:none;border-bottom:1px dotted color-mix(in srgb,var(--accent) 50%,transparent)}
+  .doclink:hover{border-bottom-style:solid}
+  .bubble{background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:12px 15px;margin:10px 0;white-space:pre-wrap}
+  .bubble.q{background:color-mix(in srgb,var(--accent) 9%,transparent);border-color:color-mix(in srgb,var(--accent) 35%,transparent);color:var(--txt)}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px}
+  @keyframes s{to{transform:rotate(360deg)}}
+  svg .land{fill:#232329;stroke:#3a3a42;stroke-width:1.2} svg .dot{stroke:var(--bg);stroke-width:2}
+  svg .site{fill:var(--accent)} svg text{fill:var(--mut);font-size:10px}
+  .flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  small.tag{color:var(--mut);font-size:11px}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal.open{display:flex} .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;max-width:700px;max-height:80vh;overflow:auto;padding:20px;margin:20px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><b>Site</b>Mind</div>
+  <div class="sub" id="projName">EPC Project Intelligence</div>
+  <div class="spacer"></div>
+  <div class="sub" id="today"></div>
+  <button class="reset" onclick="resetDemo()">↻ Reset demo</button>
+</header>
+<nav id="nav"></nav>
+<main>
+  <section class="view active" id="v-dashboard"></section>
+  <section class="view" id="v-compliance"></section>
+  <section class="view" id="v-schedule"></section>
+  <section class="view" id="v-supply"></section>
+  <section class="view" id="v-commissioning"></section>
+  <section class="view" id="v-knowledge"></section>
+</main>
+<div class="modal" id="modal" onclick="if(event.target.id==='modal')closeModal()"><div class="box" id="modalBox"></div></div>
+
+<script>
+const API = location.origin;
+const $ = (s,r=document)=>r.querySelector(s);
+async function api(path, body){
+  const opt = body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {};
+  const r = await fetch(API+path, opt);
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+const TABS=[['dashboard','Dashboard'],['compliance','Compliance'],['schedule','Schedule Risk'],['supply','Supply Chain'],['commissioning','Commissioning'],['knowledge','Knowledge / RFI']];
+function buildNav(){
+  $('#nav').innerHTML = TABS.map(([id,l],i)=>`<button data-t="${id}" class="${i==0?'active':''}" onclick="go('${id}')">${l}</button>`).join('');
+}
+function go(id){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.t===id));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $('#v-'+id).classList.add('active');
+  RENDER[id]&&RENDER[id]();
+}
+function closeModal(){$('#modal').classList.remove('open')}
+async function showDoc(id){
+  $('#modal').classList.add('open'); $('#modalBox').innerHTML='<span class="spin"></span> loading '+id;
+  const d = await api('/api/documents/'+id);
+  $('#modalBox').innerHTML=`<h2>${d.title}</h2><p class="muted">${d.type} · ${d.discipline||''} · ${d.id}</p><pre style="white-space:pre-wrap;font-size:12px">${esc(d.content)}</pre>`;
+}
+const esc=s=>(s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+async function resetDemo(){ if(!confirm('Reset demo data to the seeded snapshot?'))return; await api('/api/reset-demo',{}); alert('Demo reset.'); go('dashboard'); }
+
+const RENDER={};
+// ---------- DASHBOARD ----------
+RENDER.dashboard=async()=>{
+  const v=$('#v-dashboard'); v.innerHTML='<span class="spin"></span> loading…';
+  const d=await api('/api/dashboard');
+  $('#projName').textContent=d.project.name+' · '+d.project.location;
+  $('#today').textContent='Data date: '+d.project.today;
+  const hs=v=>v>=80?'good':v>=50?'warn':'bad';
+  v.innerHTML=`
+   <h2>${d.project.name}</h2>
+   <p class="lead">${d.project.description} — ${d.project.tier}, ${d.project.location}</p>
+   <div class="grid kpis">
+     ${kpi('Project health',d.health_score,hs(d.health_score))}
+     ${kpi('Forecast finish',d.project_finish)}
+     ${kpi('Open NCRs',d.open_ncrs,d.open_ncrs?'warn':'good')}
+     ${kpi('Open risks',d.open_risks,d.open_risks?'warn':'good')}
+     ${kpi('At-risk shipments',d.at_risk_shipments,d.at_risk_shipments?'bad':'good')}
+     ${kpi('Hours saved',d.hours_saved+'h','good')}
+   </div>
+   <div class="row" style="margin-top:14px">
+     <div class="card"><h3 style="margin-top:0">Top risks (cross-module)</h3>
+       ${d.top_risks.length?d.top_risks.map(r=>`<div class="risk ${r.impact_days>=15?'hi':''}"><b>${esc(r.title)}</b><br><small class="tag">${r.source_module} · impact ${r.impact_days}d · p=${r.probability}</small></div>`).join(''):'<p class="muted">None yet — run Compliance & Schedule analysis.</p>'}
+     </div>
+     <div class="card"><h3 style="margin-top:0">Document spine (${d.documents.length})</h3>
+       <table><tr><th>ID</th><th>Type</th><th>Title</th></tr>
+       ${d.documents.slice(0,10).map(x=>`<tr><td><span class="doclink" onclick="showDoc('${x.id}')">${x.id}</span></td><td>${x.type}</td><td>${esc(x.title).slice(0,42)}</td></tr>`).join('')}
+       </table></div>
+   </div>`;
+};
+const kpi=(l,v,c='')=>`<div class="card kpi"><div class="v ${c}">${v}</div><div class="l">${l}</div></div>`;
+
+// ---------- COMPLIANCE ----------
+RENDER.compliance=async()=>{
+  const v=$('#v-compliance');
+  const subs=await api('/api/compliance/submittals');
+  v.innerHTML=`<h2>Spec & Quality Compliance Agent</h2>
+   <p class="lead">Auto-check a vendor submittal against the governing specification. Deviations create NCRs; a critical-path item also emits a schedule risk.</p>
+   <div class="card"><div class="flex">
+     <select id="subSel">${subs.map(s=>`<option value="${s.id}">${s.tag} · ${s.spec_section} · ${s.vendor} (${s.seeded_deviations} seeded)</option>`).join('')}</select>
+     <button class="act" onclick="runCompliance()">Run compliance check</button>
+     <button class="act ghost" onclick="runEval(false)">Show accuracy evaluation</button>
+   </div><div id="compOut" style="margin-top:14px"></div></div>`;
+};
+async function runCompliance(){
+  const id=$('#subSel').value, out=$('#compOut');
+  out.innerHTML='<span class="spin"></span> Retrieving spec clauses & comparing…';
+  try{
+    const r=await api('/api/compliance/check',{submittal_doc_id:id});
+    const rep=r.report;
+    let h=`<div class="banner ${rep.summary_verdict==='COMPLIANT'?'good':'bad'}">${rep.equipment_tag} — ${rep.summary_verdict.replace('_',' ')} · spec ${rep.spec_section} · ~${rep.review_time_saved_hours}h saved vs manual review</div>`;
+    if(r.risk_event) h+=`<div class="banner bad">⚡ Cross-module: critical-path risk raised → <b>${esc(r.risk_event.title)}</b> (${r.risk_event.impact_days}d impact). Now visible in Schedule Risk.</div>`;
+    h+=`<table><tr><th>Clause</th><th>Requirement</th><th>Submitted</th><th>Verdict</th><th>Sev</th><th>Action</th></tr>`;
+    h+=rep.findings.map(f=>`<tr><td class="mono">${f.clause_ref}</td><td>${esc(f.requirement).slice(0,60)}</td><td>${esc(f.submittal_value)}</td>
+      <td><span class="chip ${f.verdict==='DEVIATION'?'dev':f.verdict==='UNCLEAR'?'unclear':'ok'}">${f.verdict}</span></td>
+      <td>${f.severity!=='none'?`<span class="chip ${f.severity}">${f.severity}</span>`:''}</td>
+      <td class="muted">${esc(f.recommended_action).slice(0,50)}</td></tr>`).join('');
+    h+='</table>';
+    if(r.ncrs.length) h+=`<p class="muted">NCRs auto-raised: ${r.ncrs.map(n=>`<span class="mono">${n.id}</span>`).join(', ')}</p>`;
+    out.innerHTML=h;
+  }catch(e){out.innerHTML=`<div class="banner bad">Error: ${esc(e.message).slice(0,300)}</div>`}
+}
+async function runEval(refresh){
+  const out=$('#compOut');
+  out.innerHTML=refresh
+    ? '<span class="spin"></span> Re-running the agent live over all 9 submittals (~2 min on Groq free tier)…'
+    : '<span class="spin"></span> Loading accuracy evaluation…';
+  try{
+    const r=await api('/api/compliance/evaluate'+(refresh?'?refresh=true':''),{});
+    const src=r.cached?'pre-computed over the labelled test set':'computed live just now';
+    let h=`<div class="banner good">Precision ${(r.precision*100).toFixed(0)}% · Recall ${(r.recall*100).toFixed(0)}% · F1 ${(r.f1*100).toFixed(0)}% — vs seeded ground truth (TP ${r.true_positives} / FP ${r.false_positives} / FN ${r.false_negatives}) <small class="muted">· ${src}</small></div>`;
+    h+=`<table><tr><th>Submittal</th><th>Expected deviations</th><th>Flagged</th><th>TP/FP/FN</th><th>Verdict</th></tr>`;
+    h+=r.per_document.map(d=>`<tr><td>${d.tag}</td><td class="mono">${d.expected.join(', ')||'—'}</td><td class="mono">${d.flagged.join(', ')||'—'}</td><td>${d.tp}/${d.fp}/${d.fn}</td><td><span class="chip ${d.verdict==='COMPLIANT'?'ok':'dev'}">${d.verdict}</span></td></tr>`).join('');
+    h+='</table><div class="flex" style="margin-top:10px"><button class="act ghost" onclick="runEval(true)">Re-run live (~2 min)</button><small class="muted">The labelled set is 9 submittals with 10 seeded deviations (ground truth in canonical.py).</small></div>';
+    out.innerHTML=h;
+  }catch(e){out.innerHTML=`<div class="banner bad">Error: ${esc(e.message).slice(0,300)}</div>`}
+}
+
+// ---------- SCHEDULE ----------
+RENDER.schedule=async()=>{
+  const v=$('#v-schedule'); v.innerHTML='<span class="spin"></span> computing critical path…';
+  const s=await api('/api/schedule');
+  const start=new Date(s.summary.project_start), end=new Date(s.summary.project_finish);
+  const span=(end-start)/86400000;
+  const bar=t=>{const es=(new Date(t.early_start)-start)/86400000, w=Math.max(1,(new Date(t.early_finish)-new Date(t.early_start))/86400000);
+    return `<div class="glabel"><span class="muted">${t.wbs} ${esc(t.name).slice(0,34)}</span><div class="gbar ${t.is_critical?'crit':''}"><i style="left:${es/span*100}%;width:${w/span*100}%"></i><span>${t.duration_days}d${t.is_critical?' ◆':''}</span></div></div>`};
+  v.innerHTML=`<h2>Predictive Schedule Risk Engine</h2>
+   <p class="lead">Deterministic CPM (critical path in red) + LLM risk analyst. Every impact is verified by the what-if engine — the model never invents dates.</p>
+   <div class="row"><div class="card">${kpi('Forecast finish',s.summary.project_finish)}</div><div class="card">${kpi('Duration',s.summary.duration_days+'d')}</div><div class="card">${kpi('Critical tasks',s.summary.critical_path.length)}</div></div>
+   <div class="card" style="margin-top:14px" id="simCard"></div>
+   <div class="card" style="margin-top:14px"><div class="flex" style="justify-content:space-between"><h3 style="margin:0">Schedule</h3>
+     <button class="act" onclick="analyzeRisks()">⚡ Analyze schedule risks</button></div>
+     <div class="gantt">${s.tasks.map(bar).join('')}</div></div>
+   <div id="riskOut"></div>`;
+  renderSim();
+};
+let _sim=null;
+async function renderSim(){
+  _sim=await api('/api/schedule/simulation');
+  const h=_sim.headline;
+  const wi=_sim.weeks.indexOf(_sim.weeks.find(w=>w>=_sim.today))||_sim.weeks.length-1;
+  $('#simCard').innerHTML=`<div class="flex" style="justify-content:space-between"><h3 style="margin:0">⏱ Simulation clock — early-warning replay</h3>
+     <span class="chip ok">headline: flagged ${h.lead_weeks} weeks early</span></div>
+   <p class="muted" style="margin:6px 0">Scrub the project timeline. A risk turns <b style="color:var(--warn)">amber</b> when SiteMind first detects it and <b style="color:var(--bad)">red</b> when it actually bites — the gap is the lead time you gain.</p>
+   <input type="range" min="0" max="${_sim.weeks.length-1}" value="${wi}" style="width:100%" oninput="simScrub(this.value)">
+   <div id="simDate" class="mono" style="text-align:center;margin:4px"></div>
+   <div id="simEvents"></div>`;
+  simScrub(wi);
+}
+function simScrub(i){
+  const wk=_sim.weeks[i]; $('#simDate').textContent='As of week of '+wk;
+  const rows=_sim.events.map(e=>{
+    const flagged=e.detected_on<=wk, bitten=e.bites_on<=wk;
+    const state=!flagged?'—':bitten?'BITING':'FLAGGED (early warning)';
+    const col=!flagged?'var(--mut)':bitten?'var(--bad)':'var(--warn)';
+    const lead=flagged&&!bitten?` · ${Math.max(0,Math.round((new Date(e.bites_on)-new Date(wk))/6048e5*10)/10)}w until impact`:'';
+    return `<div class="risk" style="border-color:${col}"><div class="flex" style="justify-content:space-between">
+      <b>${esc(e.title)}</b><span class="chip ${bitten?'dev':flagged?'minor':''}" style="${!flagged?'opacity:.4':''}">${state}</span></div>
+      <small class="tag">detected ${e.detected_on} → bites ${e.bites_on} · impact ${e.impact_days??'—'}d${lead}</small></div>`;
+  }).join('');
+  $('#simEvents').innerHTML=rows;
+}
+async function analyzeRisks(){
+  const out=$('#riskOut');
+  out.innerHTML='<div class="card" style="margin-top:14px"><span class="spin"></span> Collecting signals, running CPM what-ifs, ranking risks & proposing mitigations…</div>';
+  try{
+    const r=await api('/api/schedule/analyze',{});
+    let h=`<div class="card" style="margin-top:14px"><h3 style="margin-top:0">Risk register (${r.risks.length}) — ranked by impact × probability</h3>`;
+    h+=r.risks.map(rk=>`<div class="risk ${rk.impact_days>=15?'hi':''}">
+      <div class="flex" style="justify-content:space-between"><b>${esc(rk.title)}</b><span><span class="chip ${rk.impact_days>=15?'major':'minor'}">${rk.impact_days}d</span> <small class="tag">p=${rk.probability}</small></span></div>
+      <div class="muted" style="margin:4px 0">${esc(rk.description)}</div>
+      <small class="tag">Affected: ${(rk.affected_tasks||[]).join(', ')||'—'}</small>
+      ${rk.mitigations.map(m=>`<div class="mit"><b>↳ ${esc(m.option)}</b> — recovers <b>${m.schedule_recovery_days}d</b> (CPM-verified) · ${esc(m.cost_impact)}<br><span class="muted">${esc(m.tradeoff)}</span></div>`).join('')}
+     </div>`).join('');
+    out.innerHTML=h+'</div>';
+  }catch(e){out.innerHTML=`<div class="banner bad">Error: ${esc(e.message).slice(0,300)}</div>`}
+}
+
+// ---------- SUPPLY ----------
+RENDER.supply=async()=>{
+  const v=$('#v-supply'); v.innerHTML='<span class="spin"></span>';
+  const ships=await api('/api/supply/shipments');
+  let sync={count:0,raised:[]}; try{sync=await api('/api/supply/sync-risks',{})}catch(e){}
+  // Geographic projection over India (lng->x, lat->y).
+  const W=360,H=430, LATMIN=6,LATMAX=37,LNGMIN=67,LNGMAX=98;
+  const px=(lat,lng)=>({x:(lng-LNGMIN)/(LNGMAX-LNGMIN)*W, y:H-(lat-LATMIN)/(LATMAX-LATMIN)*H});
+  // Simplified India border (lat,lng waypoints) -> projected polygon.
+  const INDIA=[[34.5,76],[32.5,79],[30,81],[28.2,88.5],[27.3,92],[28,95.5],[26,97],[24,92.5],[22,89],[21.7,87.5],[19.5,85],[16,82],[13.1,80.3],[10,79.8],[8.1,77.5],[8.8,76.5],[11,75.2],[13,74.6],[15,73.8],[17.5,73.2],[19,72.8],[20.7,70.9],[22.3,69],[23.7,68.2],[24.7,71],[25.5,70.5],[27.8,70.2],[30,72],[32,74.3],[34.5,76]];
+  const poly=INDIA.map(([la,ln])=>{const p=px(la,ln);return `${p.x.toFixed(0)},${p.y.toFixed(0)}`}).join(' ');
+  const site=px(19.03,73.02); // Navi Mumbai project site
+  const routes=ships.map(s=>{const o=px(s.current_lat,s.current_lng);const c=s.at_risk?'var(--bad)':'var(--accent2)';
+    return `<line x1="${o.x.toFixed(0)}" y1="${o.y.toFixed(0)}" x2="${site.x.toFixed(0)}" y2="${site.y.toFixed(0)}" stroke="${c}" stroke-width="1.3" stroke-dasharray="4 3" opacity=".5"/>`}).join('');
+  const dots=ships.map(s=>{const p=px(s.current_lat,s.current_lng);const c=s.at_risk?'var(--bad)':'var(--good)';const city=(s.origin||'').split(',')[0];
+    return `<g><circle class="dot" cx="${p.x.toFixed(0)}" cy="${p.y.toFixed(0)}" r="7" fill="${c}"><title>${esc(s.description)} — from ${s.origin}, ${s.status}</title></circle>
+      <text x="${(p.x+10).toFixed(0)}" y="${(p.y+4).toFixed(0)}">${city}</text></g>`}).join('');
+  v.innerHTML=`<h2>Supply Chain Visibility</h2>
+   <p class="lead">Critical equipment in transit to the Navi Mumbai site. Dashed lines are delivery routes; a shipment is <b style="color:var(--bad)">red</b> when its ETA is later than its required-on-site date, <b style="color:var(--good)">green</b> when on track. At-risk items feed the Schedule Risk engine automatically.</p>
+   ${sync.count?`<div class="banner bad">⚡ Cross-module: ${sync.count} at-risk shipment${sync.count>1?'s':''} raised a schedule risk → ${sync.raised.map(r=>`<b>${esc(r.title)}</b> (${r.impact_days}d impact)`).join(', ')}. Now in Schedule Risk & Dashboard.</div>`:''}
+   <div class="row">
+     <div class="card" style="flex:0 0 400px">
+       <div style="font-weight:600;margin-bottom:6px">Shipment map — origins → site</div>
+       <svg viewBox="-6 -6 ${W+70} ${H+12}" width="100%" style="max-width:400px">
+         <polygon class="land" points="${poly}"/>
+         ${routes}${dots}
+         <polygon class="site" points="${site.x},${site.y-9} ${site.x+8},${site.y} ${site.x},${site.y+9} ${site.x-8},${site.y}"><title>Project Meghdoot site — Navi Mumbai</title></polygon>
+         <text x="${site.x+11}" y="${site.y+4}" style="fill:var(--accent);font-weight:600">Site (Navi Mumbai)</text>
+       </svg>
+       <div class="flex" style="font-size:12px;gap:14px;margin-top:8px">
+         <span><span style="color:var(--good)">●</span> on-track</span>
+         <span><span style="color:var(--bad)">●</span> at-risk</span>
+         <span><span style="color:var(--accent)">◆</span> project site</span>
+       </div>
+     </div>
+     <div class="card"><div style="font-weight:600;margin-bottom:8px">Tracked shipments</div>
+       <table><tr><th>Equipment</th><th>Origin</th><th>ETA</th><th>Required</th><th>Status</th></tr>
+       ${ships.map(s=>`<tr><td>${esc(s.description)}<br><small class="muted">${s.tier_supplier}</small></td><td>${(s.origin||'').split(',')[0]}</td><td>${s.eta}</td><td>${s.required_on_site}</td>
+         <td><span class="chip ${s.at_risk?'dev':'ok'}">${s.status}</span></td></tr>`).join('')}
+     </table></div>
+   </div>`;
+};
+
+// ---------- COMMISSIONING ----------
+RENDER.commissioning=async()=>{
+  const v=$('#v-commissioning'); const procs=await api('/api/commissioning/procedures');
+  window._procs=procs;
+  let ready=[]; try{ready=await api('/api/commissioning/readiness')}catch(e){}
+  const blocked=ready.filter(r=>r.status==='BLOCKED');
+  const readyPanel=`<div class="card"><h3 style="margin-top:0">Commissioning readiness <small class="tag">(schedule → commissioning)</small></h3>
+    ${blocked.length?`<div class="banner bad">⚡ Cross-module: ${blocked.length} test${blocked.length>1?'s':''} BLOCKED by upstream schedule risks.</div>`:'<div class="banner good">All tests currently ready (no blocking risks). Run Compliance or Supply to see blockers appear.</div>'}
+    <table><tr><th>Test</th><th>Level</th><th>Status</th><th>Blocked by</th></tr>
+    ${ready.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.level}</td><td><span class="chip ${r.status==='BLOCKED'?'dev':'ok'}">${r.status}</span></td>
+      <td class="muted">${r.blockers.map(b=>esc(b.title)+` (${b.impact_days}d)`).join('<br>')||'—'}</td></tr>`).join('')}
+    </table></div>`;
+  v.innerHTML=`<h2>Commissioning QA Copilot</h2>
+   <p class="lead">Guided test execution. Readings are validated against acceptance criteria (TIA-942 / Uptime aligned); a failure auto-raises an NCR and writes the test record.</p>
+   ${readyPanel}
+   <div class="card" style="margin-top:14px"><div class="flex"><select id="procSel" onchange="loadProc()">${procs.map(p=>`<option value="${p.id}">${p.level} · ${p.name}</option>`).join('')}</select></div>
+   <div id="procForm" style="margin-top:14px"></div></div>`;
+  loadProc();
+};
+function loadProc(){
+  const p=window._procs.find(x=>x.id==$('#procSel').value);
+  const inputs=p.acceptance_criteria.map(c=>{
+    const tgt=c.op==='between'?`${c.target[0]}..${c.target[1]}`:`${c.op} ${c.target}`;
+    const isBool=typeof c.target==='boolean';
+    const field = isBool?`<select id="r_${c.param}"><option value="true">true</option><option value="false">false</option></select>`
+      :`<input id="r_${c.param}" style="width:120px" placeholder="reading">`;
+    return `<tr><td>${c.param}</td><td class="muted">${tgt} ${c.unit||''}</td><td>${field}</td></tr>`}).join('');
+  $('#procForm').innerHTML=`<p class="muted">Standard: ${p.standard_ref}</p>
+    <table><tr><th>Parameter</th><th>Acceptance criteria</th><th>Reading</th></tr>${inputs}</table>
+    <div class="flex" style="margin-top:10px"><button class="act" onclick="runTest()">Validate & generate record</button>
+     <button class="act ghost" onclick="fillFail()">Demo: enter a failing reading</button></div>
+    <div id="testOut" style="margin-top:12px"></div>`;
+}
+function fillFail(){ // nudge first numeric criterion out of range
+  const p=window._procs.find(x=>x.id==$('#procSel').value);
+  p.acceptance_criteria.forEach((c,i)=>{const el=$('#r_'+c.param);if(!el)return;
+    if(typeof c.target==='boolean'){el.value='true'}
+    else if(c.op==='between'){el.value=i===0?String(c.target[0]-2):String((c.target[0]+c.target[1])/2)}
+    else if(c.op==='<='){el.value=i===0?String(Number(c.target)+ (Number(c.target)>10?10:0.5)):String(c.target)}
+    else if(c.op==='>='){el.value=i===0?String(Number(c.target)-(Number(c.target)>10?4:0.5)):String(c.target)}
+    else el.value=String(c.target);
+  });
+}
+async function runTest(){
+  const p=window._procs.find(x=>x.id==$('#procSel').value);
+  const readings={};
+  p.acceptance_criteria.forEach(c=>{const el=$('#r_'+c.param);let val=el?el.value:'';
+    if(typeof c.target==='boolean')val=val==='true'; else if(val!==''&&!isNaN(val))val=Number(val); readings[c.param]=val;});
+  const out=$('#testOut'); out.innerHTML='<span class="spin"></span> validating…';
+  try{
+    const r=await api('/api/commissioning/validate',{procedure_id:p.id,readings});
+    let h=`<div class="banner ${r.overall==='PASS'?'good':'bad'}">${r.procedure} — ${r.overall} · record ${r.record_id}${r.ncr_id?` · NCR ${r.ncr_id} raised`:''}</div>`;
+    h+=`<table><tr><th>Parameter</th><th>Reading</th><th>Target</th><th>Result</th></tr>`;
+    h+=r.steps.map(s=>`<tr><td>${s.param}</td><td class="mono">${s.reading}</td><td class="muted">${s.target}</td><td><span class="chip ${s.result==='PASS'?'ok':'dev'}">${s.result}</span></td></tr>`).join('');
+    out.innerHTML=h+'</table>';
+  }catch(e){out.innerHTML=`<div class="banner bad">Error: ${esc(e.message).slice(0,300)}</div>`}
+}
+
+// ---------- KNOWLEDGE ----------
+RENDER.knowledge=async()=>{
+  const v=$('#v-knowledge');
+  v.innerHTML=`<h2>Project Knowledge & RFI Intelligence</h2>
+   <p class="lead">RAG chat over all project documents with mandatory citations, plus similar-RFI retrieval and auto-drafted answers.</p>
+   <div class="row">
+     <div class="card"><h3 style="margin-top:0">Ask the project</h3>
+       <div class="flex"><input id="q" style="flex:1" placeholder="e.g. Does the Schneider switchgear meet the fault rating?" onkeydown="if(event.key==='Enter')doAsk()">
+         <button class="act" onclick="doAsk()">Ask</button></div>
+       <div class="flex" style="margin-top:8px">${['What input voltage tolerance must the UPS handle?','Is N+1 redundancy required for CRAH?','Who approved the busway reroute and when?'].map(x=>`<button class="act ghost" style="font-size:11px;padding:4px 8px" onclick="$('#q').value=this.textContent;doAsk()">${x}</button>`).join('')}</div>
+       <div id="chat"></div></div>
+     <div class="card"><h3 style="margin-top:0">Draft a new RFI</h3>
+       <textarea id="rfiq" style="width:100%;height:60px" placeholder="New RFI question…">What voltage window must the UPS tolerate on the incoming feed?</textarea>
+       <button class="act" style="margin-top:8px" onclick="doRfi()">Find similar & draft answer</button>
+       <div id="rfiOut"></div></div>
+   </div>`;
+};
+async function doAsk(){
+  const q=$('#q').value.trim(); if(!q)return;
+  const chat=$('#chat'); chat.innerHTML=`<div class="bubble q">${esc(q)}</div><div class="bubble" id="ans"><span class="spin"></span></div>`+chat.innerHTML;
+  const ans=$('#ans'); let text=''; let cites=[];
+  try{
+    const r=await fetch(API+'/api/ask/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})});
+    const rd=r.body.getReader(); const dec=new TextDecoder(); let buf='';
+    while(true){const {done,value}=await rd.read(); if(done)break; buf+=dec.decode(value,{stream:true});
+      const parts=buf.split('\n\n'); buf=parts.pop();
+      for(const p of parts){const ev=(p.match(/event: (.*)/)||[])[1]; const dm=(p.match(/data: ([\s\S]*)/)||[])[1];
+        if(ev==='citations'){cites=JSON.parse(dm)} else if(ev==='token'){text+=JSON.parse(dm); ans.innerHTML=esc(text)}}}
+    ans.innerHTML=esc(text)+`<div class="cites">Sources: ${cites.map(c=>`<span class="doclink" onclick="showDoc('${c.doc_id}')">[${c.doc_id}]</span>`).join(' ')}</div>`;
+  }catch(e){ans.innerHTML=`<span class="chip dev">error</span> ${esc(e.message).slice(0,200)}`}
+}
+async function doRfi(){
+  const q=$('#rfiq').value.trim(); const out=$('#rfiOut'); out.innerHTML='<span class="spin"></span> retrieving…';
+  try{
+    const r=await api('/api/rfi/draft',{question:q});
+    let h=r.best_match?`<div class="banner ${r.deflected?'good':''}">${r.deflected?'✓ Likely deflected — ':''}Closest prior: <b>${r.best_match.number}</b> (similarity ${(r.best_match.similarity*100).toFixed(0)}%)</div>`:'';
+    h+=`<div class="bubble">${esc(r.draft_answer)}</div>`;
+    h+=`<small class="tag">Similar: ${r.similar_rfis.map(s=>`${s.number} (${(s.similarity*100).toFixed(0)}%)`).join(', ')}</small>`;
+    out.innerHTML=h;
+  }catch(e){out.innerHTML=`<div class="banner bad">Error: ${esc(e.message).slice(0,200)}</div>`}
+}
+
+buildNav(); RENDER.dashboard();
+</script>
+</body>
+</html>
