@@ -99,9 +99,9 @@ def _apply_findings(conn, report: ComplianceReport):
         ncrs.append(ncr)
 
     risk = None
-    if deviations and tag in canonical.CRITICAL_TAGS:
+    if deviations and _on_critical_path(conn, tag):
         # Rejection forces a resubmittal + refab cycle on a critical-path item.
-        affected = _tasks_for_tag(conn, tag)
+        affected = repository.tasks_for_ref(conn, tag)
         risk = repository.create_risk_event(conn, {
             "id": f"RISK-{tag}-COMPLIANCE",
             "source_module": "compliance",
@@ -120,10 +120,17 @@ def _apply_findings(conn, report: ComplianceReport):
     return ncrs, risk
 
 
-def _tasks_for_tag(conn, tag: str) -> list[str]:
-    if tag == "SWGR-MV-01":
-        return ["T-021", "T-022", "T-023", "T-070"]
-    return []
+def _on_critical_path(conn, tag: str) -> bool:
+    """Data-driven: is any schedule task for this equipment on the critical path?
+
+    Replaces the old hardcoded CRITICAL_TAGS set — escalation is derived from the
+    live schedule, so any equipment that sits on the critical path escalates.
+    """
+    tasks = set(repository.tasks_for_ref(conn, tag))
+    if not tasks:
+        return False
+    critical = {t["id"] for t in repository.get_schedule_tasks(conn) if t["is_critical"]}
+    return bool(tasks & critical)
 
 
 # --------------------------------------------------------------------------- #

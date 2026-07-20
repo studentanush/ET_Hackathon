@@ -31,7 +31,7 @@ in Navi Mumbai, Phase 1 = one 8 MW data hall).
 3. **Project Knowledge & RFI Intelligence** (deep) — RAG chat with mandatory citations,
    similar-RFI retrieval, auto-drafted RFI answers.
 4. **Supply Chain Visibility** (slice) — map of critical shipments; at-risk items feed the risk engine.
-5. **Commissioning QA Copilot** (slice) — validates readings against acceptance criteria (TIA-942 /
+5. **Commissioning Validation Engine** (slice) — deterministic by design (safety-critical pass/fail is a numeric comparison in code, not an LLM judgment); validates readings against acceptance criteria (TIA-942 /
    Uptime aligned), auto-NCR on failure, writes the test record.
 
 **Cross-module intelligence** (the differentiator) — all three hooks wired:
@@ -42,6 +42,13 @@ in Navi Mumbai, Phase 1 = one 8 MW data hall).
 **Simulation clock**: a timeline slider replays the project week-by-week. Each risk
 turns amber when SiteMind first *detects* it and red when it *bites* — the switchgear
 delivery slip is flagged **~6 weeks** before it hits the required-on-site date.
+
+**Knowledge graph** (`GET /api/graph`, UI view): the relational spine is projected
+into an explicit typed graph — Equipment / Vendor / Task / Document / TestProcedure /
+NCR / RiskEvent nodes with typed edges (`governed_by`, `scheduled_as`, `supplied_by`,
+`depends_on`, `affects`, `validates`, `raised_against`) — derived from the tables at
+read time (~75 nodes / ~100 edges). The "one intelligence graph" is literal, not a
+metaphor: click any node to trace its relationships.
 
 ---
 
@@ -56,7 +63,7 @@ delivery slip is flagged **~6 weeks** before it hits the required-on-site date.
 | Vector store | **SQLite** + float32 BLOBs + numpy brute-force cosine (behind a repository layer; pgvector is a drop-in swap) |
 | Scheduling | `networkx` CPM (forward/backward pass, float, critical path, what-if) — deterministic |
 | API | FastAPI + SSE streaming |
-| UI | Single self-contained `static/index.html` (vanilla JS, zero CDNs — demo-safe offline) |
+| Frontend | **React + TypeScript + Vite + Tailwind v4** (`web/`) — sidebar dashboard shell, one route per module, reusable components. (A zero-dependency `api/sitemind/static/index.html` fallback is also served by FastAPI at `/`.) |
 
 > The original plan targeted the Claude SDK (native PDF citations, `messages.parse`,
 > prompt caching, Batches). On Groq those become: text submittals + chunk-level
@@ -78,10 +85,20 @@ uv venv --python 3.13 && uv pip install -r requirements.txt
 # 3. seed the demo database
 .venv/Scripts/python -m sitemind.seed
 
-# 4. run
-.venv/Scripts/python -m uvicorn sitemind.main:app --host 127.0.0.1 --port 8137
-# open http://127.0.0.1:8137
+# 4. run the backend API
+.venv/Scripts/python -m uvicorn sitemind.main:app --host 127.0.0.1 --port 8141
 ```
+
+```bash
+# 5. run the React frontend (separate terminal)
+cd web
+npm install
+npm run dev            # Vite dev server on http://localhost:5175
+# it proxies /api -> http://127.0.0.1:8141 (override with SITEMIND_API env var)
+```
+
+Open **http://localhost:5175**. (Or, for a zero-build fallback, just open the API's
+own page at http://127.0.0.1:8141 — the legacy single-file UI.)
 
 ---
 

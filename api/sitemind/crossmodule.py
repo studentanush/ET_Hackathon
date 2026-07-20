@@ -1,10 +1,15 @@
-"""Cross-module intelligence — the 'one intelligence graph' layer.
+"""Cross-module intelligence layer.
 
-Three deterministic wirings on top of the shared risk_events table:
+Three deterministic wirings on top of the shared relational spine:
   1. supply -> schedule       (sync_supply_risks)
   2. schedule -> commissioning (commissioning_readiness)
   3. simulation clock         (build_simulation) — when a risk was DETECTED vs
      when it BITES, so we can show the early-warning lead time.
+
+The data spine is relational, but the entities and their relationships form an
+explicit typed knowledge graph. `build_graph()` derives that graph (Equipment /
+Vendor / Task / Document / TestProcedure / NCR / RiskEvent nodes with typed
+edges) from the tables at read time, exposed at GET /api/graph.
 """
 from __future__ import annotations
 
@@ -38,7 +43,7 @@ def sync_supply_risks(conn) -> list[dict]:
             continue
         if slip <= 0:
             continue
-        task = schedule_risk._SIGNAL_TASK.get(s["id"])
+        task = repository.resolve_signal_task(conn, s["id"], "delivery")
         impact = slip
         if task:
             wi = schedule_risk.what_if(conn, task, slip)
@@ -137,7 +142,8 @@ def build_simulation(conn) -> dict:
         detected = _d(meta["detected_on"])
         bites = None
         impact_days = None
-        task = schedule_risk._SIGNAL_TASK.get(ref)
+        phase = "manufacture" if meta["source"] == "compliance" else "delivery"
+        task = repository.resolve_signal_task(conn, ref, phase)
 
         if ref in shipments:
             bites = _d(shipments[ref]["required_on_site"])
@@ -178,3 +184,78 @@ def build_simulation(conn) -> dict:
         "events": events,
         "headline": headline,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Typed knowledge graph derived from the relational spine at read time.
+# --------------------------------------------------------------------------- #
+def build_graph(conn) -> dict:
+    """Derive an explicit typed node-link graph from the existing tables.
+
+    Node types: Equipment, Vendor, Task, Document, TestProcedure, NCR, RiskEvent.
+    Edge types are the real relationships already encoded in the schema (foreign
+    keys, spec_section links, predecessors, affected_tasks, etc.).
+    """
+    nodes: dict[str, dict] = {}
+    edges: list[dict] = []
+
+    def node(nid, ntype, label):
+        if nid and nid not in nodes:
+            nodes[nid] = {"id": nid, "type": ntype, "label": label}
+
+    def edge(src, dst, etype):
+        if src in nodes and dst in nodes:
+            edges.append({"source": src, "target": dst, "type": etype})
+
+    line_items = [dict(r) for r in conn.execute("SELECT * FROM line_items").fetchall()]
+    docs = repository.list_documents(conn)
+    tasks = repository.get_schedule_tasks(conn)
+    pos = repository.get_procurement_status(conn)
+    tests = repository.list_test_procedures(conn)
+    ncrs = repository.list_ncrs(conn)
+    risks = repository.list_risk_events(conn)
+
+    for d in docs:
+        node(d["id"], "Document", d["id"])
+    for li in line_items:
+        node(f"EQ:{li['tag']}", "Equipment", li["tag"])
+        # equipment -> governing spec document
+        spec_id = f"SPEC-{(li['spec_section'] or '').replace(' ', '')}"
+        if spec_id in nodes:
+            edge(f"EQ:{li['tag']}", spec_id, "governed_by")
+    for t in tasks:
+        node(f"TASK:{t['id']}", "Task", f"{t['id']} {t['name']}"[:32])
+    for t in tasks:  # task -> predecessor task
+        for p in t["predecessors"]:
+            edge(f"TASK:{t['id']}", f"TASK:{p}", "depends_on")
+        # equipment -> task (via spec_section)
+        if t.get("spec_section"):
+            for li in line_items:
+                if li["spec_section"] == t["spec_section"]:
+                    edge(f"EQ:{li['tag']}", f"TASK:{t['id']}", "scheduled_as")
+    for po in pos:
+        if po.get("vendor"):
+            node(f"VEN:{po['vendor']}", "Vendor", po["vendor"])
+            li = next((x for x in line_items if x["id"] == po["line_item_id"]), None)
+            if li:
+                edge(f"EQ:{li['tag']}", f"VEN:{po['vendor']}", "supplied_by")
+        if po.get("submittal_doc_id") and po.get("line_item_id"):
+            li = next((x for x in line_items if x["id"] == po["line_item_id"]), None)
+            if li and po["submittal_doc_id"] in nodes:
+                edge(po["submittal_doc_id"], f"EQ:{li['tag']}", "submitted_for")
+    for tp in tests:
+        node(f"TEST:{tp['id']}", "TestProcedure", tp["name"][:28])
+        tid = canonical.TEST_PROC_TASK.get(tp["id"])
+        if tid:
+            edge(f"TEST:{tp['id']}", f"TASK:{tid}", "validates")
+    for n in ncrs:
+        node(f"NCR:{n['id']}", "NCR", n["id"])
+        if n.get("equipment_tag"):
+            edge(f"NCR:{n['id']}", f"EQ:{n['equipment_tag']}", "raised_against")
+    for r in risks:
+        node(f"RISK:{r['id']}", "RiskEvent", r["title"][:30])
+        for t in (r["affected_tasks"] or []):
+            edge(f"RISK:{r['id']}", f"TASK:{t}", "affects")
+
+    return {"nodes": list(nodes.values()), "edges": edges,
+            "counts": {"nodes": len(nodes), "edges": len(edges)}}

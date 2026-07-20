@@ -167,6 +167,74 @@ def get_schedule_tasks(conn) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- #
+# generic signal -> schedule task resolution
+#
+# Any risk signal (shipment / PO / submittal doc / equipment tag) resolves to the
+# equipment type it concerns (spec_section) and then to the schedule task(s) for
+# that type. No hardcoded id maps — the relationships live in the data.
+# --------------------------------------------------------------------------- #
+def spec_section_for_ref(conn, ref: str) -> str | None:
+    """Resolve a signal reference to its governing spec_section by trying it as a
+    shipment id, PO id, submittal doc id, line-item id, then an equipment tag."""
+    if not ref:
+        return None
+    queries = [
+        ("SELECT li.spec_section FROM shipments s JOIN procurement_orders po ON po.id=s.po_id "
+         "JOIN line_items li ON li.id=po.line_item_id WHERE s.id=?", (ref,)),
+        ("SELECT li.spec_section FROM procurement_orders po JOIN line_items li ON li.id=po.line_item_id "
+         "WHERE po.id=?", (ref,)),
+        ("SELECT li.spec_section FROM procurement_orders po JOIN line_items li ON li.id=po.line_item_id "
+         "WHERE po.submittal_doc_id=?", (ref,)),
+        ("SELECT spec_section FROM line_items WHERE id=? OR tag=?", (ref, ref)),
+    ]
+    for sql, params in queries:
+        row = conn.execute(sql, params).fetchone()
+        if row and row[0]:
+            return row[0]
+    return None
+
+
+# Preference order when the exact requested phase has no task for that equipment.
+_PHASE_FALLBACK = {
+    "manufacture": ["manufacture", "delivery", "install", "submittal"],
+    "delivery": ["delivery", "manufacture", "install", "submittal"],
+    "install": ["install", "delivery", "manufacture", "submittal"],
+    "submittal": ["submittal", "manufacture", "delivery", "install"],
+}
+
+
+def tasks_for_spec_section(conn, spec_section: str) -> list[str]:
+    if not spec_section:
+        return []
+    return [r["id"] for r in _rows(
+        conn, "SELECT id FROM schedule_tasks WHERE spec_section=? ORDER BY wbs", (spec_section,))]
+
+
+def resolve_task(conn, spec_section: str, prefer_phase: str = "delivery") -> str | None:
+    """Return the schedule task for an equipment type at (or near) a given phase."""
+    rows = _rows(
+        conn, "SELECT id, phase FROM schedule_tasks WHERE spec_section=? ORDER BY wbs",
+        (spec_section,)) if spec_section else []
+    if not rows:
+        return None
+    by_phase = {r["phase"]: r["id"] for r in rows}
+    for ph in _PHASE_FALLBACK.get(prefer_phase, [prefer_phase]):
+        if ph in by_phase:
+            return by_phase[ph]
+    return rows[0]["id"]
+
+
+def resolve_signal_task(conn, ref: str, prefer_phase: str = "delivery") -> str | None:
+    """Full path: signal ref -> spec_section -> schedule task."""
+    return resolve_task(conn, spec_section_for_ref(conn, ref), prefer_phase)
+
+
+def tasks_for_ref(conn, ref: str) -> list[str]:
+    """All schedule tasks for the equipment type a signal ref concerns."""
+    return tasks_for_spec_section(conn, spec_section_for_ref(conn, ref))
+
+
+# --------------------------------------------------------------------------- #
 # NCRs
 # --------------------------------------------------------------------------- #
 def create_ncr(conn, ncr: dict) -> dict:

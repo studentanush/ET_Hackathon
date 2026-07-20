@@ -338,6 +338,22 @@ TEST_PROC_TASK = {
     "TP-IST-L5": "T-091",  # integrated systems test (L5 IST)
 }
 
+# Links each schedule task to the equipment type (spec_section) it concerns and
+# its phase. This is the backfill for the schedule_tasks.spec_section/phase
+# columns and is what lets any shipment/PO/submittal/tag resolve to a task
+# generically (repository.resolve_signal_task) instead of hardcoded id maps.
+TASK_EQUIPMENT = {
+    "T-020": ("26 13 13", "submittal"),  "T-021": ("26 13 13", "manufacture"),
+    "T-022": ("26 13 13", "delivery"),   "T-023": ("26 13 13", "install"),
+    "T-030": ("26 33 53", "submittal"),  "T-031": ("26 33 53", "delivery"),
+    "T-032": ("26 33 53", "install"),
+    "T-040": ("26 32 13", "submittal"),  "T-041": ("26 32 13", "delivery"),
+    "T-042": ("26 32 13", "install"),
+    "T-050": ("23 81 00", "submittal"),  "T-051": ("23 81 00", "delivery"),
+    "T-052": ("23 81 00", "install"),
+    "T-060": ("26 25 00", "delivery"),   "T-061": ("26 25 00", "install"),
+}
+
 SIM_DETECTION = {
     # ref -> {detected_on, source, title}. bites_on is computed from the data.
     "SHP-020": {"detected_on": "2026-06-05", "source": "supply",

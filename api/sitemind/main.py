@@ -67,6 +67,7 @@ def dashboard():
                                 reverse=True)[:3],
             "at_risk_shipments": len(at_risk_ships),
             "documents": repository.list_documents(c),
+            "audit_events": c.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0],
             "hours_saved": hours_saved,
             "health_score": max(0, 100 - len(risks) * 6 - len([n for n in ncrs if n["status"] == "open"]) * 3),
         }
@@ -201,6 +202,16 @@ def schedule_simulation():
     c = conn()
     try:
         return crossmodule.build_simulation(c)
+    finally:
+        c.close()
+
+
+@app.get("/api/graph")
+def graph():
+    """Typed knowledge graph derived from the relational spine at read time."""
+    c = conn()
+    try:
+        return crossmodule.build_graph(c)
     finally:
         c.close()
 

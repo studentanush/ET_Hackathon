@@ -22,6 +22,8 @@ node_modules/
 .next/
 out/
 web/.env.local
+web/dist/
+web/.vite/
 
 # os
 .DS_Store

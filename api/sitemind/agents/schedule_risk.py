@@ -76,14 +76,19 @@ def collect_signals(conn) -> list[dict]:
 
 
 # Map a shipment/PO/NCR to the schedule task it threatens (demo mapping).
-_SIGNAL_TASK = {
-    "SHP-020": "T-022", "PO-020": "T-021", "SHP-040": "T-060",
-    "SWGR-MV-01": "T-021", "PO-003": "T-031", "PO-011": "T-041",
+# Which task phase each signal type threatens.
+_SIGNAL_PHASE = {
+    "shipment_delay": "delivery",       # a late shipment hits the delivery task
+    "procurement_status": "manufacture",  # a stalled PO hits manufacture
+    "open_ncr": "manufacture",          # a rejected submittal forces resubmittal + refab
 }
 
 
-def _linked_task(sig: dict) -> str | None:
-    return _SIGNAL_TASK.get(sig.get("ref")) or _SIGNAL_TASK.get(sig.get("equipment_tag"))
+def _linked_task(conn, sig: dict) -> str | None:
+    """Resolve a signal to its schedule task generically (no hardcoded ids)."""
+    ref = sig.get("ref") or sig.get("equipment_tag")
+    phase = _SIGNAL_PHASE.get(sig.get("type"), "delivery")
+    return repository.resolve_signal_task(conn, ref, phase)
 
 
 SYS = (
@@ -103,7 +108,7 @@ def analyze_risks(conn, *, effort: str = "xhigh") -> dict:
     # For each signal linked to a task, compute the deterministic schedule impact.
     verified = []
     for sig in signals:
-        tid = _linked_task(sig)
+        tid = _linked_task(conn, sig)
         if not tid:
             continue
         delay = int(sig.get("slip_days") or 21)  # NCR/PO default to a resubmittal cycle

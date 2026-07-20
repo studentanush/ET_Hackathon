@@ -82,7 +82,9 @@ CREATE TABLE IF NOT EXISTS schedule_tasks (
     actual_end    TEXT,
     predecessors  TEXT,                 -- JSON array of task ids
     resource      TEXT,
-    is_critical   INTEGER DEFAULT 0
+    is_critical   INTEGER DEFAULT 0,
+    spec_section  TEXT,                 -- links task to an equipment type (specs)
+    phase         TEXT                  -- submittal|manufacture|delivery|install (task type)
 );
 
 CREATE TABLE IF NOT EXISTS test_procedures (

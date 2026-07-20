@@ -106,13 +106,15 @@ def _seed_schedule(conn) -> None:
     result = cpm.analyze(tasks, canonical.PROJECT["start_date"])
     for t in tasks:
         r = result["tasks"][t["id"]]
+        spec_section, phase = canonical.TASK_EQUIPMENT.get(t["id"], (None, None))
         conn.execute(
             "INSERT OR REPLACE INTO schedule_tasks "
-            "(id, wbs, name, duration_days, planned_start, planned_end, actual_start, actual_end, predecessors, resource, is_critical) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            "(id, wbs, name, duration_days, planned_start, planned_end, actual_start, actual_end, predecessors, resource, is_critical, spec_section, phase) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (t["id"], t["wbs"], t["name"], t["duration_days"],
              r["early_start"], r["early_finish"], None, None,
-             json.dumps(t["predecessors"]), t["resource"], 1 if r["is_critical"] else 0),
+             json.dumps(t["predecessors"]), t["resource"], 1 if r["is_critical"] else 0,
+             spec_section, phase),
         )
     conn.commit()
     return result

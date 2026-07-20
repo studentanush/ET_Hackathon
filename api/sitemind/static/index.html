@@ -93,6 +93,8 @@
   <section class="view" id="v-supply"></section>
   <section class="view" id="v-commissioning"></section>
   <section class="view" id="v-knowledge"></section>
+  <section class="view" id="v-graph"></section>
+  <section class="view" id="v-audit"></section>
 </main>
 <div class="modal" id="modal" onclick="if(event.target.id==='modal')closeModal()"><div class="box" id="modalBox"></div></div>
 
@@ -105,7 +107,8 @@ async function api(path, body){
   if(!r.ok) throw new Error(await r.text());
   return r.json();
 }
-const TABS=[['dashboard','Dashboard'],['compliance','Compliance'],['schedule','Schedule Risk'],['supply','Supply Chain'],['commissioning','Commissioning'],['knowledge','Knowledge / RFI']];
+const TABS=[['dashboard','Dashboard'],['compliance','Compliance'],['schedule','Schedule Risk'],['supply','Supply Chain'],['commissioning','Commissioning'],['knowledge','Knowledge / RFI'],['graph','Knowledge Graph'],['audit','Audit Trail']];
+// (Commissioning tab renders the deterministic Commissioning Validation Engine.)
 function buildNav(){
   $('#nav').innerHTML = TABS.map(([id,l],i)=>`<button data-t="${id}" class="${i==0?'active':''}" onclick="go('${id}')">${l}</button>`).join('');
 }
@@ -142,6 +145,7 @@ RENDER.dashboard=async()=>{
      ${kpi('Open risks',d.open_risks,d.open_risks?'warn':'good')}
      ${kpi('At-risk shipments',d.at_risk_shipments,d.at_risk_shipments?'bad':'good')}
      ${kpi('Hours saved',d.hours_saved+'h','good')}
+     <div class="card kpi" style="cursor:pointer" onclick="go('audit')" title="View audit trail"><div class="v">${d.audit_events}</div><div class="l">Audit events →</div></div>
    </div>
    <div class="row" style="margin-top:14px">
      <div class="card"><h3 style="margin-top:0">Top risks (cross-module)</h3>
@@ -316,8 +320,8 @@ RENDER.commissioning=async()=>{
     ${ready.map(r=>`<tr><td>${esc(r.name)}</td><td>${r.level}</td><td><span class="chip ${r.status==='BLOCKED'?'dev':'ok'}">${r.status}</span></td>
       <td class="muted">${r.blockers.map(b=>esc(b.title)+` (${b.impact_days}d)`).join('<br>')||'—'}</td></tr>`).join('')}
     </table></div>`;
-  v.innerHTML=`<h2>Commissioning QA Copilot</h2>
-   <p class="lead">Guided test execution. Readings are validated against acceptance criteria (TIA-942 / Uptime aligned); a failure auto-raises an NCR and writes the test record.</p>
+  v.innerHTML=`<h2>Commissioning Validation Engine</h2>
+   <p class="lead">Guided test execution. Readings are validated against acceptance criteria (TIA-942 / Uptime aligned); a failure auto-raises an NCR and writes the test record. <b>Deterministic by design</b> — safety-critical pass/fail is a numeric comparison in code, not an LLM judgment.</p>
    ${readyPanel}
    <div class="card" style="margin-top:14px"><div class="flex"><select id="procSel" onchange="loadProc()">${procs.map(p=>`<option value="${p.id}">${p.level} · ${p.name}</option>`).join('')}</select></div>
    <div id="procForm" style="margin-top:14px"></div></div>`;
@@ -403,6 +407,63 @@ async function doRfi(){
     out.innerHTML=h;
   }catch(e){out.innerHTML=`<div class="banner bad">Error: ${esc(e.message).slice(0,200)}</div>`}
 }
+
+// ---------- KNOWLEDGE GRAPH ----------
+const GTYPES=[['Document','#8a94ff'],['Equipment','#d97757'],['Vendor','#c9a94b'],['Task','#7ab8a0'],['TestProcedure','#5fa8d3'],['NCR','#e0695f'],['RiskEvent','#e05252']];
+RENDER.graph=async()=>{
+  const v=$('#v-graph'); v.innerHTML='<span class="spin"></span> deriving graph…';
+  const g=await api('/api/graph');
+  const colX={}, colW=175, rowH=20, top=40, W=GTYPES.length*colW+40;
+  const pos={}; const cols={};
+  GTYPES.forEach(([t],i)=>{colX[t]=i*colW+90; cols[t]=[]});
+  g.nodes.forEach(n=>{if(cols[n.type])cols[n.type].push(n)});
+  let maxLen=0;
+  GTYPES.forEach(([t])=>{cols[t].forEach((n,i)=>{pos[n.id]={x:colX[t],y:top+i*rowH,type:t}}); maxLen=Math.max(maxLen,cols[t].length)});
+  const H=top+maxLen*rowH+20;
+  const color=Object.fromEntries(GTYPES);
+  const lines=g.edges.map((e,i)=>{const a=pos[e.source],b=pos[e.target];if(!a||!b)return'';
+    return `<line class="gedge" data-s="${e.source}" data-t="${e.target}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#4a4a55" stroke-width="1" opacity=".28"><title>${e.type}</title></line>`}).join('');
+  const dots=g.nodes.map(n=>{const p=pos[n.id];if(!p)return'';
+    return `<g class="gnode" data-id="${n.id}" onclick="graphSel('${n.id.replace(/'/g,"")}')" style="cursor:pointer">
+      <circle cx="${p.x}" cy="${p.y}" r="5" fill="${color[n.type]}"/>
+      <text x="${p.x+8}" y="${p.y+3.5}" style="fill:var(--mut);font-size:10px">${esc(n.label).slice(0,20)}</text></g>`}).join('');
+  const heads=GTYPES.map(([t,c])=>`<text x="${colX[t]}" y="24" style="fill:${c};font-size:11px;font-weight:700">${t} (${cols[t].length})</text>`).join('');
+  v.innerHTML=`<h2>Knowledge Graph</h2>
+   <p class="lead">The relational spine as an explicit typed graph, derived at read time from the tables (${g.counts.nodes} nodes, ${g.counts.edges} typed edges). Click any node to trace its relationships — e.g. Equipment → governing spec, scheduled tasks, vendor; RiskEvent → affected tasks. This is what makes the "one intelligence graph" literal, not a metaphor.</p>
+   <div class="flex" style="gap:14px;margin-bottom:8px;flex-wrap:wrap">${GTYPES.map(([t,c])=>`<span style="font-size:12px"><span style="color:${c}">●</span> ${t}</span>`).join('')}</div>
+   <div id="graphSel" class="muted" style="margin-bottom:8px;font-size:12px">Click a node to highlight its edges.</div>
+   <div class="card" style="overflow:auto;max-height:70vh;padding:8px">
+     <svg viewBox="0 0 ${W} ${H}" width="${W}" style="min-width:${W}px">${heads}${lines}${dots}</svg>
+   </div>`;
+};
+function graphSel(id){
+  const edges=[...document.querySelectorAll('#v-graph .gedge')];
+  const connected=new Set([id]);
+  edges.forEach(e=>{const on=e.dataset.s===id||e.dataset.t===id;
+    e.setAttribute('opacity',on?'.9':'.05'); e.setAttribute('stroke',on?'var(--accent)':'#4a4a55'); e.setAttribute('stroke-width',on?'1.6':'1');
+    if(on){connected.add(e.dataset.s);connected.add(e.dataset.t)}});
+  document.querySelectorAll('#v-graph .gnode').forEach(n=>{n.style.opacity=connected.has(n.dataset.id)?'1':'.25'});
+  const deg=edges.filter(e=>e.dataset.s===id||e.dataset.t===id).length;
+  $('#graphSel').innerHTML=`Selected <b class="mono">${esc(id)}</b> — ${deg} relationship${deg!==1?'s':''} highlighted. <span class="doclink" onclick="RENDER.graph()">reset</span>`;
+}
+
+// ---------- AUDIT TRAIL ----------
+RENDER.audit=async()=>{
+  const v=$('#v-audit'); v.innerHTML='<span class="spin"></span> loading audit trail…';
+  const rows=await api('/api/audit');
+  const fmt=t=>{try{return new Date(t).toLocaleString()}catch(e){return t}};
+  const detail=d=>{if(!d||typeof d!=='object')return '';
+    return Object.entries(d).map(([k,val])=>`${k}=${typeof val==='object'?JSON.stringify(val):val}`).join(', ');};
+  v.innerHTML=`<h2>Audit Trail</h2>
+   <p class="lead">Every write to the data spine — compliance verdicts, NCRs, commissioning validations — is recorded here in reverse-chronological order for QMS traceability. ${rows.length} event${rows.length!==1?'s':''}.</p>
+   <div class="card">${rows.length?`<table><tr><th>When</th><th>Actor</th><th>Action</th><th>Entity</th><th>ID</th><th>Detail</th></tr>
+     ${rows.map(r=>`<tr><td class="mono" style="white-space:nowrap">${fmt(r.at)}</td><td>${esc(r.actor)}</td>
+       <td><span class="chip ${r.action==='create'?'minor':'ok'}">${esc(r.action)}</span></td>
+       <td>${esc(r.entity)}</td><td class="mono">${esc(r.entity_id)}</td>
+       <td class="muted">${esc(detail(r.detail)).slice(0,90)}</td></tr>`).join('')}
+     </table>`:'<p class="muted">No events yet. Run a compliance check or a commissioning validation to populate the trail.</p>'}
+   </div>`;
+};
 
 buildNav(); RENDER.dashboard();
 </script>

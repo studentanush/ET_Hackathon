@@ -1,8 +1,12 @@
-"""Commissioning QA Copilot (slice).
+"""Commissioning Validation Engine (slice).
 
 Deterministic validation of engineer readings against acceptance criteria; a
-failed step auto-raises an NCR with the standard citation. Test record narrative
-is generated as an as-commissioned summary.
+failed step auto-raises an NCR with the standard citation, and the as-commissioned
+test record is written to the quality package.
+
+Deterministic by design: this is safety-critical pass/fail (Uptime Tier III /
+TIA-942 acceptance), so each reading is compared to its numeric criterion in code
+(`_cmp`) — no LLM judgment. A model must never be able to pass a failing test.
 """
 from __future__ import annotations
 
@@ -57,6 +61,8 @@ def validate(conn, procedure_id: str, readings: dict, *, executed_by: str = "Cx 
         "id": rec_id, "procedure_id": procedure_id, "executed_by": executed_by,
         "executed_at": now, "readings": readings, "result": result, "ncr_id": ncr_id,
     })
+    repository.log(conn, executed_by, "validate", "test_record", rec_id,
+                   {"procedure": proc["name"], "result": result, "ncr": ncr_id})
     return {"record_id": rec_id, "procedure": proc["name"], "standard_ref": proc["standard_ref"],
             "overall": result, "steps": steps, "ncr_id": ncr_id, "executed_by": executed_by,
             "executed_at": now}
