@@ -6,6 +6,7 @@ is VERIFIED against the CPM what-if — the model never invents dates.
 """
 from __future__ import annotations
 
+import hashlib
 from datetime import date, datetime, timezone
 
 from .. import canonical, cpm, llm, repository
@@ -31,6 +32,12 @@ def cpm_state(conn) -> dict:
 def what_if(conn, task_id: str, delay_days: int) -> dict:
     return cpm.what_if(_tasks(conn), canonical.PROJECT["start_date"],
                        delay_task_id=task_id, delay_days=delay_days)
+
+
+def monte_carlo(conn, *, iterations: int = 500, spread_pct: float = 0.15) -> dict:
+    """Probabilistic finish-date distribution (wraps cpm.monte_carlo)."""
+    return cpm.monte_carlo(_tasks(conn), canonical.PROJECT["start_date"],
+                           iterations=iterations, spread_pct=spread_pct)
 
 
 # --------------------------------------------------------------------------- #
@@ -145,7 +152,7 @@ def analyze_risks(conn, *, effort: str = "xhigh") -> dict:
                 m.schedule_recovery_days = max(0, min(r.impact_days, recovered))
         rd = r.model_dump()
         repository.create_risk_event(conn, {
-            "id": f"RISK-SCHED-{r.risk_type[:12]}-{abs(hash(r.title)) % 1000}",
+            "id": f"RISK-SCHED-{r.risk_type[:12]}-{hashlib.md5(r.title.encode()).hexdigest()[:6]}",
             "source_module": "schedule", "risk_type": r.risk_type,
             "title": r.title, "description": r.description,
             "probability": r.probability, "impact_days": r.impact_days,

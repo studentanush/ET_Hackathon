@@ -13,8 +13,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from . import canonical, crossmodule, db, ingest, repository, seed
-from .agents import commissioning, compliance, rag, schedule_risk
+from . import canonical, crossmodule, db, demo_fixtures, ingest, repository, seed
+from .agents import commissioning, compliance, rag, schedule_risk, spec_compiler
 
 app = FastAPI(title="SiteMind API", version="0.1.0")
 app.add_middleware(
@@ -159,6 +159,23 @@ def compliance_eval(refresh: bool = False):
 
 
 # --------------------------------------------------------------------------- #
+# spec -> rule compiler (isolated; read-only; independent of /api/compliance/*)
+# --------------------------------------------------------------------------- #
+@app.get("/api/spec-compiler/demo-fixture")
+def spec_demo_fixture():
+    return {"raw_text": demo_fixtures.FIRE_SUPPRESSION_SPEC}
+
+
+class CompileBody(BaseModel):
+    raw_text: str
+
+
+@app.post("/api/spec-compiler/compile")
+def spec_compile(body: CompileBody):
+    return spec_compiler.compile_spec(body.raw_text).model_dump()
+
+
+# --------------------------------------------------------------------------- #
 # schedule risk
 # --------------------------------------------------------------------------- #
 @app.get("/api/schedule")
@@ -192,6 +209,16 @@ def schedule_whatif(body: WhatIfBody):
     c = conn()
     try:
         return schedule_risk.what_if(c, body.task_id, body.delay_days)
+    finally:
+        c.close()
+
+
+@app.get("/api/schedule/montecarlo")
+def schedule_montecarlo(iterations: int = 500):
+    """Additive probabilistic view — P10/P50/P90 finish spread via Monte Carlo."""
+    c = conn()
+    try:
+        return schedule_risk.monte_carlo(c, iterations=max(50, min(2000, iterations)))
     finally:
         c.close()
 

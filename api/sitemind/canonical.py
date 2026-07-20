@@ -179,6 +179,131 @@ SUBMITTALS = [
                    "seismic_cert": True, "factory_witness_test": True},
         "deviations": [],
     },
+    # ---- Extended eval set (additive; compliance evaluation only) -----------
+    # These 14 submittals exist purely to enlarge the labelled accuracy test set.
+    # They are NOT in LINE_ITEMS / PROCUREMENT / SCHEDULE / SHIPMENTS.
+    {
+        "id": "SUB-UPS-C", "equipment_tag": "UPS-C-01", "spec_section": "26 33 53",
+        "vendor": "Vertex Power", "model": "VX-DC700",
+        "values": {"topology": "double-conversion online", "module_kw": 700, "input_voltage_tolerance_pct": 18,
+                   "output_thd_pct": 2.2, "efficiency_pct": 96.8, "battery_autonomy_min": 8,
+                   "seismic_cert": True, "factory_witness_test": True},
+        "deviations": [],
+    },
+    {
+        "id": "SUB-UPS-D", "equipment_tag": "UPS-D-01", "spec_section": "26 33 53",
+        "vendor": "AmpGuard Systems", "model": "AG-500X",
+        "values": {"topology": "double-conversion online", "module_kw": 500, "input_voltage_tolerance_pct": 15,
+                   "output_thd_pct": 4.0, "efficiency_pct": 96.0, "battery_autonomy_min": 4,
+                   "seismic_cert": True, "factory_witness_test": True},
+        "deviations": [
+            {"clause_ref": "2.3.2", "param": "output_thd_pct", "submitted": "4.0%", "expected": "<=3%", "severity": "minor", "reason": "Output THD exceeds the 3% limit on linear load."},
+            {"clause_ref": "2.5.1", "param": "battery_autonomy_min", "submitted": "4 min", "expected": ">=5 min", "severity": "major", "reason": "Battery autonomy below the 5-minute minimum at full load."},
+        ],
+    },
+    {
+        "id": "SUB-UPS-E", "equipment_tag": "UPS-E-01", "spec_section": "26 33 53",
+        "vendor": "NovaCell Energy", "model": "NC-DC600",
+        "values": {"topology": "double-conversion online", "module_kw": 600, "input_voltage_tolerance_pct": 16,
+                   "output_thd_pct": 2.6, "efficiency_pct": 96.2, "battery_autonomy_min": 6,
+                   "seismic_cert": True, "factory_witness_test": False},
+        "deviations": [
+            {"clause_ref": "3.1.1", "param": "factory_witness_test", "submitted": "not provided", "expected": "required", "severity": "minor", "reason": "No factory witness test commitment provided prior to shipment."},
+        ],
+    },
+    {
+        "id": "SUB-DG-04", "equipment_tag": "DG-04", "spec_section": "26 32 13",
+        "vendor": "Cummins Powergen", "model": "PG-2800",
+        "values": {"prime_power_kwe": 2800, "fuel_autonomy_hr": 12, "emissions": "CPCB IV+",
+                   "single_step_load_pct": 100, "sound_dba_at_1m": 80, "governor": "electronic isochronous"},
+        "deviations": [],
+    },
+    {
+        "id": "SUB-DG-05", "equipment_tag": "DG-05", "spec_section": "26 32 13",
+        "vendor": "Perkins Diesel", "model": "PK-2500L",
+        "values": {"prime_power_kwe": 2600, "fuel_autonomy_hr": 9, "emissions": "CPCB IV",
+                   "single_step_load_pct": 100, "sound_dba_at_1m": 83, "governor": "electronic isochronous"},
+        "deviations": [
+            {"clause_ref": "2.3.1", "param": "emissions", "submitted": "CPCB IV", "expected": "CPCB IV+", "severity": "major", "reason": "Engine certified to CPCB IV, not the required CPCB IV+ norm."},
+        ],
+    },
+    {
+        "id": "SUB-DG-06", "equipment_tag": "DG-06", "spec_section": "26 32 13",
+        "vendor": "Volvo Penta", "model": "VP-2600",
+        "values": {"prime_power_kwe": 2400, "fuel_autonomy_hr": 8, "emissions": "CPCB IV+",
+                   "single_step_load_pct": 100, "sound_dba_at_1m": 84, "governor": "droop"},
+        "deviations": [
+            {"clause_ref": "2.1.1", "param": "prime_power_kwe", "submitted": "2400 kWe", "expected": ">=2500 kWe", "severity": "major", "reason": "Prime power below the 2500 kWe minimum at site conditions."},
+            {"clause_ref": "2.6.1", "param": "governor", "submitted": "droop", "expected": "electronic isochronous", "severity": "minor", "reason": "Droop governor offered instead of the required electronic isochronous type."},
+        ],
+    },
+    {
+        "id": "SUB-SWGR-02", "equipment_tag": "SWGR-MV-02", "spec_section": "26 13 13",
+        "vendor": "ABB", "model": "UniGear ZS1",
+        "values": {"rated_voltage_kv": 11, "short_circuit_ka": 31.5, "busbar_rating_a": 3150,
+                   "arc_containment": True, "ip_rating": 4, "type_test_cert": True},
+        "deviations": [],
+    },
+    {
+        "id": "SUB-SWGR-03", "equipment_tag": "SWGR-MV-03", "spec_section": "26 13 13",
+        "vendor": "Lucy Electric", "model": "LE-11kV",
+        "values": {"rated_voltage_kv": 11, "short_circuit_ka": 25, "busbar_rating_a": 2000,
+                   "arc_containment": True, "ip_rating": 4, "type_test_cert": False},
+        "deviations": [
+            {"clause_ref": "2.3.1", "param": "busbar_rating_a", "submitted": "2000 A", "expected": ">=2500 A", "severity": "major", "reason": "Main busbar continuous rating below the 2500 A minimum."},
+            {"clause_ref": "3.1.1", "param": "type_test_cert", "submitted": "not provided", "expected": "required", "severity": "major", "reason": "No accredited-lab type test certificates submitted."},
+        ],
+    },
+    {
+        "id": "SUB-SWGR-04", "equipment_tag": "SWGR-MV-04", "spec_section": "26 13 13",
+        "vendor": "CG Power", "model": "CG-VCB11",
+        "values": {"rated_voltage_kv": 33, "short_circuit_ka": 26, "busbar_rating_a": 2500,
+                   "arc_containment": True, "ip_rating": 4, "type_test_cert": True},
+        "deviations": [
+            {"clause_ref": "2.1.1", "param": "rated_voltage_kv", "submitted": "33 kV", "expected": "11 kV", "severity": "major", "reason": "Wrong voltage class — 33 kV lineup offered against an 11 kV requirement."},
+        ],
+    },
+    {
+        "id": "SUB-CRAH-03", "equipment_tag": "CRAH-03", "spec_section": "23 81 00",
+        "vendor": "Vertiv Liebert", "model": "PDX-140",
+        "values": {"sensible_kw": 140, "airflow_m3h": 34000, "ec_fans": True,
+                   "supply_temp_control_c": 0.7, "redundancy_n_plus_1": True},
+        "deviations": [],
+    },
+    {
+        "id": "SUB-CRAH-04", "equipment_tag": "CRAH-04", "spec_section": "23 81 00",
+        "vendor": "Schneider Uniflair", "model": "UF-125",
+        "values": {"sensible_kw": 125, "airflow_m3h": 31000, "ec_fans": False,
+                   "supply_temp_control_c": 1.5, "redundancy_n_plus_1": True},
+        "deviations": [
+            {"clause_ref": "2.3.1", "param": "ec_fans", "submitted": "fixed-speed fans", "expected": "EC plug-fans required", "severity": "minor", "reason": "Fixed-speed fans offered instead of EC plug-fans; poorer part-load efficiency."},
+            {"clause_ref": "2.4.1", "param": "supply_temp_control_c", "submitted": "+/-1.5 C", "expected": "<=+/-1 C", "severity": "minor", "reason": "Supply air temperature control band wider than specified."},
+        ],
+    },
+    {
+        "id": "SUB-CRAH-06", "equipment_tag": "CRAH-06", "spec_section": "23 81 00",
+        "vendor": "Daikin Applied", "model": "DK-130CR",
+        "values": {"sensible_kw": 110, "airflow_m3h": 30000, "ec_fans": True,
+                   "supply_temp_control_c": 0.9, "redundancy_n_plus_1": True},
+        "deviations": [
+            {"clause_ref": "2.1.1", "param": "sensible_kw", "submitted": "110 kW", "expected": ">=120 kW", "severity": "major", "reason": "Net sensible cooling capacity below the 120 kW per-unit minimum."},
+        ],
+    },
+    {
+        "id": "SUB-BUSWAY-C", "equipment_tag": "BUSWAY-C", "spec_section": "26 25 00",
+        "vendor": "Legrand", "model": "LG-4000SW",
+        "values": {"current_rating_a": 4000, "short_circuit_ka": 100, "ip_rating": 55, "tap_off_provision": True},
+        "deviations": [],
+    },
+    {
+        "id": "SUB-BUSWAY-D", "equipment_tag": "BUSWAY-D", "spec_section": "26 25 00",
+        "vendor": "Eaton", "model": "EX-4000",
+        "values": {"current_rating_a": 3200, "short_circuit_ka": 100, "ip_rating": 55, "tap_off_provision": False},
+        "deviations": [
+            {"clause_ref": "2.1.1", "param": "current_rating_a", "submitted": "3200 A", "expected": ">=4000 A", "severity": "major", "reason": "Busway continuous current rating below the 4000 A requirement."},
+            {"clause_ref": "2.4.1", "param": "tap_off_provision", "submitted": "no tap-off provisions", "expected": "required at 1.5 m centres", "severity": "minor", "reason": "No plug-in tap-off provisions offered."},
+        ],
+    },
 ]
 
 # Critical-path equipment tags — a rejected submittal on these emits a risk_event.

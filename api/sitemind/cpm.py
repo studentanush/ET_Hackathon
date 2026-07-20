@@ -9,6 +9,7 @@ Durations and offsets are in calendar days for demo simplicity.
 """
 from __future__ import annotations
 
+import random
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -129,4 +130,73 @@ def what_if(
         "project_slip_days": slip,
         "absorbed_by_float": slip < delay_days,
         "new_critical_path": delayed["critical_path"],
+    }
+
+
+def monte_carlo(
+    tasks: list[dict],
+    project_start: str | date,
+    *,
+    iterations: int = 500,
+    spread_pct: float = 0.15,
+    seed: int | None = 42,
+) -> dict[str, Any]:
+    """Probabilistic finish-date distribution (additive; wraps analyze()).
+
+    Each iteration perturbs every task's duration by a triangular distribution
+    centred on its planned duration (+/- spread_pct, min 1 day), then runs the
+    EXISTING analyze() unchanged. Returns P10/P50/P90 finish dates plus a weekly
+    histogram. This does not alter analyze()/what_if() — it only calls analyze().
+    """
+    rng = random.Random(seed)
+    start = _parse(project_start)
+    baseline = analyze(tasks, start)
+    finish_offsets: list[int] = []
+
+    for _ in range(iterations):
+        sampled = []
+        for t in tasks:
+            d = int(t.get("duration_days", 0) or 0)
+            if d <= 0:
+                sampled.append(dict(t))
+                continue
+            lo = max(1, d * (1 - spread_pct))
+            hi = d * (1 + spread_pct)
+            dur = max(1, round(rng.triangular(lo, hi, d)))
+            sampled.append({**t, "duration_days": dur})
+        res = analyze(sampled, start)
+        finish_offsets.append(res["duration_days"])
+
+    finish_offsets.sort()
+
+    def pct(p: float) -> int:
+        idx = min(len(finish_offsets) - 1, int(p * (len(finish_offsets) - 1)))
+        return finish_offsets[idx]
+
+    def as_date(days: int) -> str:
+        return (start + timedelta(days=days)).isoformat()
+
+    # weekly histogram buckets
+    lo, hi = finish_offsets[0], finish_offsets[-1]
+    bucket = 7
+    counts: dict[int, int] = {}
+    for o in finish_offsets:
+        b = (o // bucket) * bucket
+        counts[b] = counts.get(b, 0) + 1
+    histogram = [
+        {"finish": as_date(b), "days": b, "count": counts.get(b, 0)}
+        for b in range(lo - lo % bucket, hi + bucket, bucket)
+    ]
+
+    return {
+        "iterations": iterations,
+        "spread_pct": spread_pct,
+        "deterministic_finish": baseline["project_finish"],
+        "p10_finish": as_date(pct(0.10)),
+        "p50_finish": as_date(pct(0.50)),
+        "p90_finish": as_date(pct(0.90)),
+        "p10_days": pct(0.10),
+        "p50_days": pct(0.50),
+        "p90_days": pct(0.90),
+        "histogram": histogram,
     }

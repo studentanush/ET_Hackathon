@@ -6,7 +6,6 @@ provides the equivalents we actually need:
 
     complete()       -> plain text
     complete_json()  -> JSON-mode output validated against a Pydantic model
-    run_agent()      -> OpenAI-style function-calling loop (replaces tool_runner)
     stream()         -> token stream for SSE
 
 Effort ("low"/"high"/"xhigh" in the plan) maps to gpt-oss reasoning_effort.
@@ -15,7 +14,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Callable, Iterator, Type, TypeVar
+from typing import Iterator, Type, TypeVar
 
 from groq import BadRequestError, Groq
 from pydantic import BaseModel, ValidationError
@@ -139,77 +138,6 @@ def complete_json(
                  "content": f"That did not validate: {e}. Return corrected JSON only, no prose."}
             )
     raise ValueError(f"complete_json failed after {retries + 1} attempts: {last_err}")
-
-
-def run_agent(
-    messages: list[dict],
-    tools: list[dict],
-    tool_impls: dict[str, Callable[..., Any]],
-    *,
-    model: str | None = None,
-    effort: str = "high",
-    max_tokens: int = 4096,
-    max_steps: int = 8,
-    on_event: Callable[[dict], None] | None = None,
-) -> tuple[str, list[dict]]:
-    """OpenAI-style function-calling loop (our stand-in for Claude tool_runner).
-
-    `tools` are OpenAI tool schemas; `tool_impls` maps name -> python callable
-    taking kwargs. `on_event` receives {type, ...} dicts for streaming the
-    "Checking clause 2.3.4…" activity feed to the UI. Returns (final_text, trace).
-    """
-    model = model or config.REASONING_MODEL
-    convo = list(messages)
-    trace: list[dict] = []
-    for _ in range(max_steps):
-        resp = client().chat.completions.create(
-            model=model,
-            messages=convo,
-            tools=tools,
-            tool_choice="auto",
-            max_tokens=max_tokens,
-            extra_body=_extra(model, effort),
-        )
-        msg = resp.choices[0].message
-        if not msg.tool_calls:
-            if on_event:
-                on_event({"type": "final"})
-            return msg.content or "", trace
-        # Record the assistant turn (with its tool calls) verbatim.
-        convo.append(
-            {
-                "role": "assistant",
-                "content": msg.content or "",
-                "tool_calls": [tc.model_dump() for tc in msg.tool_calls],
-            }
-        )
-        for tc in msg.tool_calls:
-            name = tc.function.name
-            try:
-                args = json.loads(tc.function.arguments or "{}")
-            except json.JSONDecodeError:
-                args = {}
-            if on_event:
-                on_event({"type": "tool_call", "name": name, "args": args})
-            impl = tool_impls.get(name)
-            if impl is None:
-                result = {"error": f"unknown tool {name}"}
-            else:
-                try:
-                    result = impl(**args)
-                except Exception as e:  # surface tool errors back to the model
-                    result = {"error": str(e)}
-            trace.append({"tool": name, "args": args, "result": result})
-            if on_event:
-                on_event({"type": "tool_result", "name": name})
-            convo.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": json.dumps(result, default=str)[:12000],
-                }
-            )
-    return "Agent stopped: max reasoning steps reached.", trace
 
 
 def stream(

@@ -26,6 +26,8 @@ export default function ScheduleRisk() {
 
       <Gantt tasks={sched.data.tasks} start={sched.data.summary.project_start} finish={sched.data.summary.project_finish} />
 
+      <MonteCarloPanel />
+
       <RiskRegister />
     </div>
   );
@@ -127,6 +129,63 @@ function SimulationClock({ sim }: { sim: any }) {
         })}
       </div>
     </Card>
+  );
+}
+
+function MonteCarloPanel() {
+  const { data, loading, error } = useAsync<any>(() => apiGet("/schedule/montecarlo"));
+  return (
+    <Card
+      title="Monte Carlo finish-date forecast"
+      actions={<Badge tone="neutral">probabilistic</Badge>}
+    >
+      <p className="text-[13px] text-mut">
+        A probabilistic view distinct from the deterministic CPM finish above: each task duration is
+        perturbed ±15% (triangular) over {data?.iterations ?? "500"} runs of the same CPM engine.
+      </p>
+      {loading && <div className="mt-3"><Spinner label="Running simulations…" /></div>}
+      {error && <div className="mt-3"><Banner tone="bad">{error}</Banner></div>}
+      {data && (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-3.5 md:grid-cols-4">
+            <StatTile label="Deterministic (CPM)" value={data.deterministic_finish} />
+            <StatTile label="P10 (optimistic)" value={data.p10_finish} tone="good" />
+            <StatTile label="P50 (likely)" value={data.p50_finish} tone="warn" />
+            <StatTile label="P90 (conservative)" value={data.p90_finish} tone="bad" />
+          </div>
+          <Histogram buckets={data.histogram} p50={data.p50_finish} />
+        </>
+      )}
+    </Card>
+  );
+}
+
+function Histogram({ buckets, p50 }: { buckets: any[]; p50: string }) {
+  const max = Math.max(1, ...buckets.map((b) => b.count));
+  return (
+    <div className="mt-4">
+      <div className="flex items-end gap-1.5" style={{ height: 120 }}>
+        {buckets.map((b) => (
+          <div key={b.days} className="flex flex-1 flex-col items-center justify-end">
+            <div
+              title={`${b.finish}: ${b.count} runs`}
+              className="w-full rounded-t"
+              style={{
+                height: `${(b.count / max) * 100}%`,
+                background:
+                  b.finish === p50
+                    ? "var(--color-warn)"
+                    : "color-mix(in srgb, var(--color-accent2) 55%, transparent)",
+              }}
+            />
+            <div className="mt-1 text-[9px] text-faint">{b.finish.slice(5)}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 text-[11px] text-faint">
+        Finish-week distribution across simulations (amber = P50 week).
+      </div>
+    </div>
   );
 }
 

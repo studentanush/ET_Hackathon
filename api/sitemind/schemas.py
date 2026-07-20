@@ -65,3 +65,20 @@ class TestValidation(BaseModel):
     overall: Literal["PASS", "FAIL"]
     steps: list[StepResult]
     note: str = ""
+
+
+# --- spec -> rule compiler -------------------------------------------------
+class CompiledClause(BaseModel):
+    ref: str = Field(description="Clause number, e.g. '2.3.1' (infer if absent)")
+    param: str = Field(description="snake_case machine key for the requirement")
+    op: Literal[">=", "<=", "==", "bool", "between"]
+    value: str = Field(description="Threshold as a string; UI displays as-is")
+    unit: str = ""
+    text: str = Field(description="The requirement restated concisely")
+    severity: Literal["minor", "major", "critical"]
+
+
+class CompiledSpec(BaseModel):
+    section: str
+    title: str
+    clauses: list[CompiledClause]

@@ -5,6 +5,7 @@ import { ToastHost } from "./components/ui";
 import { apiGet } from "./lib/api";
 import Dashboard from "./pages/Dashboard";
 import Compliance from "./pages/Compliance";
+import SpecCompiler from "./pages/SpecCompiler";
 import ScheduleRisk from "./pages/ScheduleRisk";
 import SupplyChain from "./pages/SupplyChain";
 import Commissioning from "./pages/Commissioning";
@@ -26,6 +27,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/compliance" element={<Compliance />} />
+          <Route path="/spec-compiler" element={<SpecCompiler />} />
           <Route path="/schedule" element={<ScheduleRisk />} />
           <Route path="/supply" element={<SupplyChain />} />
           <Route path="/commissioning" element={<Commissioning />} />

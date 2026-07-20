@@ -6,6 +6,7 @@ import { useToast } from "./ui";
 const ICON: Record<string, ReactNode> = {
   dashboard: <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z" />,
   compliance: <path d="M9 12l2 2 4-4M12 3l7 4v5c0 4-3 7-7 8-4-1-7-4-7-8V7z" />,
+  compiler: <path d="M8 6l-4 6 4 6M16 6l4 6-4 6M13 4l-2 16" />,
   schedule: <path d="M3 6h18M3 12h18M3 18h12M17 16l2 2 3-3" />,
   supply: <path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10" />,
   commissioning: <path d="M9 11l3 3 6-6M4 6h16v14H4z" />,
@@ -17,6 +18,7 @@ const ICON: Record<string, ReactNode> = {
 const NAV: [string, string, string][] = [
   ["/", "Dashboard", "dashboard"],
   ["/compliance", "Compliance", "compliance"],
+  ["/spec-compiler", "Spec Compiler", "compiler"],
   ["/schedule", "Schedule Risk", "schedule"],
   ["/supply", "Supply Chain", "supply"],
   ["/commissioning", "Commissioning", "commissioning"],
