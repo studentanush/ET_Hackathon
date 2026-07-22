@@ -31,3 +31,4 @@ Thumbs.db
 
 # model cache (fastembed downloads onnx here)
 .fastembed_cache/
+PRESENTATION_NOTES.md
