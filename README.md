@@ -40,6 +40,47 @@ Key features:
 - knowledge graph view from relational entities to typed edges
 - seeded dataset with reproducible demo results
 
+```mermaid
+flowchart LR
+  UI[Web frontend]
+  subgraph Backend
+    API[FastAPI API]
+    AG[Agent layer]
+    LLM[Groq LLM models]
+    EM[Local embeddings]
+    CPM[CPM schedule engine]
+    DB[SQLite + seeded dataset]
+  end
+  subgraph Modules
+    CE[Spec & Compliance]
+    SR[Schedule Risk]
+    RFI[RFI & Knowledge]
+    SC[Supply Chain]
+    CM[Commissioning]
+  end
+
+  UI --> API
+  API --> CE
+  API --> SR
+  API --> RFI
+  API --> SC
+  API --> CM
+  API --> DB
+  API --> AG
+  AG --> LLM
+  AG --> EM
+  CE --> SR
+  SC --> SR
+  SR --> CM
+  CE --> DB
+  RFI --> DB
+  SC --> DB
+  CM --> DB
+  SR --> DB
+  DB --> CPM
+  API --> CPM
+```
+
 ## Stack
 
 | Layer | Choice |
